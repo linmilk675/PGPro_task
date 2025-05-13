@@ -68,3 +68,21 @@ JIT:
   Timing: Generation 2.589 ms, Inlining 0.000 ms, Optimization 1.661 ms, Emission 26.585 ms, Total 30.835 ms
 Execution Time: 19651.067 ms
 ```
+
+```
+CREATE INDEX idx_t1_name_a ON t1(id) WHERE name LIKE 'a%';
+```
+
+*Результат*
+
+```
+Planning:
+  Buffers: shared hit=23 read=1
+Planning Time: 0.723 ms
+JIT:
+  Functions: 29
+  Options: Inlining false, Optimization false, Expressions true, Deforming true
+  Timing: Generation 2.214 ms, Inlining 0.000 ms, Optimization 1.036 ms, Emission 18.355 ms, Total 21.605 ms
+Execution Time: 12888.285 ms
+```
+
