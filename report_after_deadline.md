@@ -86,3 +86,25 @@ JIT:
 Execution Time: 12888.285 ms
 ```
 
+В таблице ```t2``` для столбца ```day``` указан тип данных ```text```, при том что данные типа ```date```. При изменении типа данных исходный запрос с удалением ```left``` для соединения выдаёт следующий результат:
+
+Изменение типа данных:
+
+```
+alter table t2 alter column day type date using day::date;
+```
+Запрос:
+```
+EXPLAIN (ANALYZE, BUFFERS)
+select max(t2.day) from t2 inner join t1 on t2.t_id = t1.id and t1.name like 'a%';
+```
+
+Результат:
+
+```
+Planning:
+  Buffers: shared hit=8
+Planning Time: 0.301 ms
+Execution Time: 4895.988 ms
+```
+
