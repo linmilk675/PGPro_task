@@ -1,1 +1,1 @@
-## Hi! This is an SQL query optimization task
+## Hi! This is a SQL query optimization task
