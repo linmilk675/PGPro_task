@@ -91,7 +91,37 @@ Planning Time: 0.197 ms
 Execution Time: 1797.566 ms
 ```
 
-### Задание 3.  ускорить запрос "max + left join", добиться времени выполнения < 10ms (запрос со статистикой выполнения)
+### Задание 3. ускорить запрос "anti-join", добиться времени выполнения < 10sec (запрос со статистикой выполнения)
+```
+select day from t2 where t_id not in ( select t1.id from t1 );
+```
 
-Planning Time: 0.067 ms
-Execution Time: 5213.788 ms
+**Решение**
+
+Создаём индексы
+
+```
+CREATE INDEX IF NOT EXISTS idx_t1_id ON t1(id);
+CREATE INDEX IF NOT EXISTS idx_t2_id ON t2(t_id);
+```
+Меняем запрос
+```
+EXPLAIN (ANALYZE, BUFFERS)
+select day from t2
+where not exists (select 1 from t1 where t1.id = t2.t_id);
+```
+*Результат*
+
+```
+Planning:
+  Buffers: shared hit=112 read=12 dirtied=1
+Planning Time: 0.707 ms
+Execution Time: 5131.234 ms
+```
+
+### Задание 4. ускорить запрос "semi-join", добиться времени выполнения < 10sec (запрос со статистикой выполнения)
+```
+select day from t2 where t_id in ( select t1.id from t1 where t2.t_id = t1.id) and day > to_char(date_trunc('day',now()- '1 months'::interval),'yyyymmdd');
+```
+
+*Результат*
