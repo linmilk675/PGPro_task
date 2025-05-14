@@ -124,4 +124,33 @@ Execution Time: 5131.234 ms
 select day from t2 where t_id in ( select t1.id from t1 where t2.t_id = t1.id) and day > to_char(date_trunc('day',now()- '1 months'::interval),'yyyymmdd');
 ```
 
+**Решение**
+
+```
+EXPLAIN (ANALYZE, BUFFERS)
+select day from t2 where t_id in ( select t1.id from t1 where t2.t_id = t1.id) and day > to_char(date_trunc('day',now()- '1 months'::interval),'yyyymmdd');
+```
 *Результат*
+
+```
+Planning:
+  Buffers: shared hit=15 read=1 dirtied=1
+Planning Time: 0.559 ms
+Execution Time: 4948.962 ms
+```
+
+Преобразуем запрос
+
+```
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT t2.day FROM t2 JOIN t1 ON t1.id = t2.t_id
+WHERE t2.day > (CURRENT_DATE - '1 months'::interval);
+```
+*Результат*
+
+```
+Planning:
+  Buffers: shared hit=21 read=7 dirtied=1
+Planning Time: 0.483 ms
+Execution Time: 1549.804 ms
+```
