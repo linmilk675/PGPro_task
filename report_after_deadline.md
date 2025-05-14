@@ -158,12 +158,120 @@ Execution Time: 1549.804 ms
 ```
 ### Задание 5. ускорить работу "savepoint + update", добиться постоянной во времени производительности (число транзакций в секунду)
 
- создали функцию
- ```
+Для начала создайте функцию с помощью следующей команды:
+
+```
+# generate function random with two arguments
+psql -X -q <<'EOF'
 create or replace function random(left bigint, right bigint) returns bigint
 as $$
  select trunc(random.left + random()*(random.right - random.left))::bigint;
 $$                                                
 language sql;
+EOF
+```
+
+Сгенерите SQL файл, который будет создавать нагрузку на базу:
+
+```
+# generate 100 subtransactions
+psql -X -q > generate_100_subtrans.sql <<EOF
+select '\\set id random(1,10000000)'
+union all
+select 'BEGIN;'
+union all
+select 'savepoint v' || v.id || ';'                || E'\n' 
+    || 'update t1 set name = name where id = :id;' || E'\n'
+from generate_series(1,100) v(id)
+union all
+select E'COMMIT;\n' \g (tuples_only=true format=unaligned)
+EOF
+```
+
+Проверьте работоспособность скрипта:
+```
+# check in single session using psql
+psql < generate_100_subtrans.sql > generate_100_subtrans.lst
+```
+
+И запустите сам тест. Он состоит из двух частей: сессии которая ничего не делает и 10 сессий которые генерят нагрузку. Запустить можно его так:
+
+```
+# execute long running transaction
+psql -c 'select txid_current(); select pg_sleep(3600);' &
+# check using pgbench
+pgbench -p 5433 -rn -P1 -c10 -T3600 -M prepared -f generate_100_subtrans.sql 2>&1 > generate_100_subtrans_pgbench.log
+```
+
+**Решение**
+
+Так как я, к сожалению, делала всё на винде, моя жизнь стала веселее 
+
+Создаём sql файл create_random_function.sql
+
+```
+create or replace function random(left bigint, right bigint) returns bigint
+as $$
+ select trunc(random.left + random()*(random.right - random.left))::bigint;
+$$
+language sql;
+```
+
+```
+C:\Program Files\PostgreSQL\16\bin>psql -U postgres -d postgres -f C:\Users\Malbolge\AppData\Roaming\DBeaverData\workspace6\General\Scripts\create_random_function.sql
+Пароль пользователя postgres:
+CREATE FUNCTION
+```
+Создаём sql файл generate_script.sql
+
+```
+select '\\set id random(1,10000000)'
+union all
+select 'BEGIN;'
+union all
+select 'savepoint v' || v.id || ';'                || E'\n' 
+    || 'update t1 set name = name where id = :id;' || E'\n'
+from generate_series(1,100) v(id)
+union all
+select E'COMMIT;\n' \g (tuples_only=true format=unaligned)
+```
+
+```
+C:\Program Files\PostgreSQL\16\bin>psql -U postgres -d postgres -q -X -f C:\Users\Malbolge\AppData\Roaming\DBeaverData\workspace6\General\Scripts\generate_script.sql > C:\Users\Malbolge\AppData\Roaming\DBeaverData\workspace6\General\Scripts\generate_100_subtrans.sql
+```
+
+Проверка работоспособности скрипта
+
+```
+C:\Program Files\PostgreSQL\16\bin>psql -U postgres -d postgres < C:\Users\Malbolge\AppData\Roaming\DBeaverData\workspace6\General\Scripts\generate_100_subtrans.sql > C:\Users\Malbolge\AppData\Roaming\DBeaverData\workspace6\General\Scripts\generate_100_subtrans.lst
+```
+
+*Результат*
+```
+неверная команда \
+Р?РЁР?Р'Р?Р?:  Р?С?РёР+РєР° С?РёР?С'Р°РєС?РёС?Р° (РїС?РёР?РчС?Р?Р?Рч РїР?Р>Р?Р¶РчР?РёРч: ":")
+LINE 1: update t1 set name = name where id = :id;
+```
+(и на 100 умножить)
+
+```
+select 'BEGIN;'
+union all
+select 'savepoint v' || v.id || ';'                || E'\n' 
+    || 'update t1 set name = name where id = random(1,10000000);' || E'\n'
+from generate_series(1,100) v(id)
+union all
+select E'COMMIT;\n' \g (tuples_only=true format=unaligned)
+```
+
+Запускаем долгую транзакцию
+
+```
+C:\Program Files\PostgreSQL\16\bin>psql -U postgres -d postgres -c "select txid_current(); select pg_sleep(3600);"
+```
+
+Запускаем нагрузочный тест
+```
+C:\Program Files\PostgreSQL\16\bin>pgbench -p 5432 -rn -P1 -c10 -T3600 -M prepared -f C:\Users\Malbolge\AppData\Roaming\DBeaverData\workspace6\General\Scripts\generate_100_subtrans.sql -U postgres -d postgres > C:\Users\Malbolge\AppData\Roaming\DBeaverData\workspace6\General\Scripts\generate_100_subtrans_pgbench.log 2>&1
 ```
 
