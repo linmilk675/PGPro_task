@@ -1,3 +1,5 @@
+*Замечание* Использована версия PostgreSQL 16.8
+
 ### Задание 2.  ускорить запрос "max + left join", добиться времени выполнения < 10ms (запрос со статистикой выполнения)
 ```
 select max(t2.day) from t2 left join t1 on t2.t_id = t1.id and t1.name like 'a%';
@@ -154,3 +156,14 @@ Planning:
 Planning Time: 0.483 ms
 Execution Time: 1549.804 ms
 ```
+### Задание 5. ускорить работу "savepoint + update", добиться постоянной во времени производительности (число транзакций в секунду)
+
+ создали функцию
+ ```
+create or replace function random(left bigint, right bigint) returns bigint
+as $$
+ select trunc(random.left + random()*(random.right - random.left))::bigint;
+$$                                                
+language sql;
+```
+
